@@ -1,0 +1,4 @@
+.environment/**
+__pycache__/
+dist/
+geochemistry_helpers.egg*
