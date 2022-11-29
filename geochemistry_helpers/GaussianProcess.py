@@ -12,6 +12,7 @@ class GaussianProcess:
         self.means = None
         self.queries = []
         self.weights = None
+        self.cholesky = None
 
         self.constrained = False
         self.gaussian_constraints = False
@@ -118,6 +119,10 @@ class GaussianProcess:
         else:
             return numpy.logspace(numpy.log10(bounds[0]),numpy.log10(bounds[1]),number[0])
 
+    def getCholesky(self):
+        if self.cholesky is None:
+            self.cholesky = numpy.linalg.cholesky(self.covariances+1e-6*numpy.eye(numpy.shape(self.covariances)[0]))
+        return self.cholesky
     # Kernel
     def kernelWrapper(self,parameters,t1,t2=None):
         if t2 is None:
@@ -166,9 +171,12 @@ class GaussianProcess:
         for sample_group in samples:
             for samples in numpy.transpose(sample_group):
                 yield [sample for sample in samples]
-    def getSamples(self,number_of_samples):
+    def getSamples(self,number_of_samples,seed=None):
         self.number_of_samples = number_of_samples
-        samples = numpy.random.multivariate_normal(numpy.squeeze(self.flat_means),self.covariances,number_of_samples)
+        if seed is not None:
+            samples = numpy.transpose(numpy.transpose(self.flat_means[numpy.newaxis])+numpy.matmul(self.getCholesky(),numpy.transpose(seed[numpy.newaxis])))
+        else:
+            samples = numpy.random.multivariate_normal(numpy.squeeze(self.flat_means),self.covariances,number_of_samples)
         split_samples = self.split(samples)
         self.assignSamples(split_samples)
         return self
