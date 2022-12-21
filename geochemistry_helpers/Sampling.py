@@ -1,9 +1,4 @@
-from cmath import sqrt
-from multiprocessing.sharedctypes import Value
-
-import numpy
-import copy
-import warnings
+import numpy,copy,math,warnings,json
 from matplotlib import pyplot
 
 class Distribution:
@@ -226,16 +221,47 @@ class Sampler(Distribution):
 class MarkovChain:
     def __init__(self):
         self.samples = []
+        self.burnt = 0
+    def __len__(self):
+        return len(self.samples)
+    
+    @property
+    def burnt_index(self):
+        if self.burnt>0:
+            return math.floor(self.burnt/100*len(self))
+        else:
+            return 0
     def addSample(self,sample):
         output = MarkovChain()
         output.samples = self.samples+[sample]
         return output
     def accumulate(self,name):
-        return tuple(sample.__dict__[name] for sample in self.samples)
+        return tuple(sample.__dict__[name] for sample in self.samples[self.burnt_index:])
     def final(self,name):
         return self.samples[-1].__dict__[name]
-    def __len__(self):
-        return len(self.samples)
+    def burn(self,percentage):
+        self.burnt = percentage
+        return self
+    def fromSamples(self,samples):
+        for sample in samples:
+            markov_chain_sample = MarkovChainSample()
+            for (name,value) in sample.items():
+                markov_chain_sample = markov_chain_sample.addField(name,value)
+            self = self.addSample(markov_chain_sample)
+        return self
+
+    def toJSON(self,filename):
+        json_data = json.dumps(self.samples,cls=MCEncoder,indent=4)
+        json_data_stripped = json_data.replace('"xxx',"").replace('xxx"',"").replace('xxx',"")
+        with open(filename,"w") as file:
+            file.write(json_data_stripped)
+    def fromJSON(self,filename):
+        with open(filename,"r") as file:
+            raw_data = file.read()
+        json_data = json.loads(raw_data)
+        self = self.fromSamples(json_data)
+
+        return self
 class MarkovChainSample:
     def __init__(self):
         pass
@@ -250,3 +276,22 @@ class MarkovChainSample:
         else:
             raise ValueError(name+" already in MarkovChainSample")
         return output
+
+class MCEncoder(json.JSONEncoder):
+    def default(self,obj):
+        output = {}
+        if isinstance(obj,MarkovChainSample):
+            for name,value in obj.__dict__.items():
+                if isinstance(value,list) and isinstance(value[0],numpy.ndarray):
+                    output[name] = self.toStr(value)
+                elif isinstance(value,numpy.ndarray) and len(value)==1:
+                    output[name] = value[0]
+                elif isinstance(value,numpy.ndarray):
+                    output[name] = self.toStr(value)
+                else:
+                    output[name] = value
+            return output
+        # Let the base class default method raise the TypeError
+        return json.JSONEncoder.default(self,obj)
+    def toStr(self,array):
+        return "xxx["+",".join(numpy.array2string(numpy.array(numpy.squeeze(x)),max_line_width=1e10,separator=",",floatmode="maxprec_equal") for x in array)+"]xxx"

@@ -1,4 +1,3 @@
-from multiprocessing.sharedctypes import Value
 import numpy,math,json
 from matplotlib import pyplot
 from .Sampling import Sampler
@@ -192,6 +191,8 @@ class GaussianProcess:
             samples += [numpy.stack([mcmc_sample[sample_group_index] for mcmc_sample in mcmc_samples])]
         self.assignSamples(samples)
         self.means = [numpy.mean(sample,axis=0) for sample in self.samples]
+        
+        return self
     def assignSamples(self,samples,weights=None):
         self.samples = samples
         self.number_of_samples = numpy.shape(samples[0])[0]
@@ -531,7 +532,6 @@ class GaussianProcess:
 
         a = 5
 
-
     # Output
     def toJSON(self,filename):
         # Want kernel function, parameters, means, samples
@@ -539,10 +539,18 @@ class GaussianProcess:
         json_data_stripped = json_data.replace('"xxx',"").replace('xxx"',"").replace('xxx',"")
         with open(filename,"w") as file:
             file.write(json_data_stripped)
+    def fromJSON(self,filename):
+        with open(filename,"r") as file:
+            raw_data = file.read()
+        json_data = json.loads(raw_data)
+        self.setQueryLocations(json_data["locations"],bin_edges=numpy.array(json_data["edges"]))
+        self.fromMCMCSamples(json_data["samples"])
+
+        return self
 
 class GPEncoder(json.JSONEncoder):
     def toStr(self,array):
-        return "xxx["+",".join(str(x) for x in array)+"]xxx"
+        return "xxx["+",".join(numpy.array2string(numpy.array(numpy.squeeze(x)),max_line_width=1e10,separator=",",floatmode="maxprec_equal") for x in array)+"]xxx"
     def default(self,obj):
         if isinstance(obj,GaussianProcess):
             output = {}
@@ -551,11 +559,9 @@ class GPEncoder(json.JSONEncoder):
                 output["parameters"] = self.toStr(obj.parameters)
             if obj.means is not None:
                 output["means"] = self.toStr(obj.means)
-
-            # output = {"kernel":obj.kernel,"parameters":self.toStr(obj.parameters),
-            #           "means":self.toStr(obj.means)}
             if obj.queries is not None:
                 output["locations"] = self.toStr(obj.query_locations)
+                output["edges"] = self.toStr(obj.queries[0][0].bin_edges)
             if obj.means is not None:
                 output["means"] = [self.toStr(numpy.squeeze(mean)) for mean in obj.means]
             if obj.samples is not None:
@@ -563,7 +569,7 @@ class GPEncoder(json.JSONEncoder):
                 sample_generator = obj.getNextSampleByNumber()
 
                 for sample in sample_generator:
-                    output["samples"] += [self.toStr([self.toStr(group) for group in sample])]
+                    output["samples"] += [self.toStr(sample)]
             
             if obj.weights is not None:
                 output["weights"] = self.toStr(obj.weights)
