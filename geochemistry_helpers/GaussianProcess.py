@@ -549,8 +549,15 @@ class GaussianProcess:
         return self
 
 class GPEncoder(json.JSONEncoder):
+    def listOfArraysToString(self,list_of_arrays):
+        return "xxx["+", ".join([self.arrayToString(group) for group in list_of_arrays])+"]xxx"
+    def arrayToString(self,array):
+        return "["+", ".join([str(value) for value in array])+"]"
     def toStr(self,array):
-        return "xxx["+",".join(numpy.array2string(numpy.array(numpy.squeeze(x)),max_line_width=1e10,separator=",",floatmode="maxprec_equal") for x in array)+"]xxx"
+        if isinstance(array[0],int) or isinstance(array[0],float):
+            return "xxx["+", ".join(str(x) for x in array)+"]xxx"
+        else:
+            return "xxx["+", ".join(str(x) for group in array for x in group)+"]xxx"
     def default(self,obj):
         if isinstance(obj,GaussianProcess):
             output = {}
@@ -560,16 +567,16 @@ class GPEncoder(json.JSONEncoder):
             if obj.means is not None:
                 output["means"] = self.toStr(obj.means)
             if obj.queries is not None:
-                output["locations"] = self.toStr(obj.query_locations)
+                output["locations"] = self.listOfArraysToString(obj.query_locations)
                 output["edges"] = self.toStr(obj.queries[0][0].bin_edges)
             if obj.means is not None:
-                output["means"] = [self.toStr(numpy.squeeze(mean)) for mean in obj.means]
+                output["means"] = self.listOfArraysToString(obj.means)
             if obj.samples is not None:
                 output["samples"] = []
                 sample_generator = obj.getNextSampleByNumber()
 
                 for sample in sample_generator:
-                    output["samples"] += [self.toStr(sample)]
+                    output["samples"] += [self.listOfArraysToString(sample)]
             
             if obj.weights is not None:
                 output["weights"] = self.toStr(obj.weights)
