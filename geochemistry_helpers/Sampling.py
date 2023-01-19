@@ -249,7 +249,17 @@ class MarkovChain:
                 markov_chain_sample = markov_chain_sample.addField(name,value)
             self = self.addSample(markov_chain_sample)
         return self
-
+    def round(self,precision):
+        output = MarkovChain()
+        for sample in self.samples:
+            markov_chain_sample = MarkovChainSample()
+            for (name,value) in sample.items():
+                if isinstance(value,numpy.ndarray):
+                    markov_chain_sample = markov_chain_sample.addField(name,numpy.round(value,precision))
+                else:
+                    markov_chain_sample = markov_chain_sample.addField(name,[numpy.round(array,precision) for array in value])
+            output = output.addSample(markov_chain_sample)
+        return output
     def toJSON(self,filename):
         json_data = json.dumps(self.samples,cls=MCEncoder,indent=4)
         json_data_stripped = json_data.replace('"xxx',"").replace('xxx"',"").replace('xxx',"")
@@ -276,22 +286,31 @@ class MarkovChainSample:
         else:
             raise ValueError(name+" already in MarkovChainSample")
         return output
+    def items(self):
+        return self.__dict__.items()
 
 class MCEncoder(json.JSONEncoder):
+    def listOfArraysToString(self,list_of_arrays):
+        return "xxx["+", ".join([self.arrayToString(group) for group in list_of_arrays])+"]xxx"
+    def arrayToString(self,array):
+        return "xxx["+", ".join([str(value) for value in numpy.squeeze(array)])+"]xxx"
+    def toStr(self,array):
+        if isinstance(array[0],int) or isinstance(array[0],float):
+            return "xxx["+", ".join(str(x) for x in array)+"]xxx"
+        else:
+            return "xxx["+", ".join(str(x) for group in array for x in group)+"]xxx"
     def default(self,obj):
         output = {}
         if isinstance(obj,MarkovChainSample):
             for name,value in obj.__dict__.items():
                 if isinstance(value,list) and isinstance(value[0],numpy.ndarray):
-                    output[name] = self.toStr(value)
+                    output[name] = self.listOfArraysToString(value)
                 elif isinstance(value,numpy.ndarray) and len(value)==1:
                     output[name] = value[0]
                 elif isinstance(value,numpy.ndarray):
-                    output[name] = self.toStr(value)
+                    output[name] = self.arrayToString(value)
                 else:
                     output[name] = value
             return output
         # Let the base class default method raise the TypeError
         return json.JSONEncoder.default(self,obj)
-    def toStr(self,array):
-        return "xxx["+",".join(numpy.array2string(numpy.array(numpy.squeeze(x)),max_line_width=1e10,separator=",",floatmode="maxprec_equal") for x in array)+"]xxx"

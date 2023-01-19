@@ -281,6 +281,15 @@ class GaussianProcess:
         self.assignSamples(samples)
 
         return self
+    def round(self,precision):
+        samples = []
+        for sample_group in self.samples:
+            local_samples = []
+            for sample in sample_group:
+                local_samples += [numpy.round(sample,precision)]
+            samples += [local_samples]
+        self.assignSamples(samples)
+        return self
 
     # Local Mean
     def removeLocalMean(self,fraction=(2,3),parameters=None):        
@@ -552,7 +561,7 @@ class GPEncoder(json.JSONEncoder):
     def listOfArraysToString(self,list_of_arrays):
         return "xxx["+", ".join([self.arrayToString(group) for group in list_of_arrays])+"]xxx"
     def arrayToString(self,array):
-        return "["+", ".join([str(value) for value in array])+"]"
+        return "["+", ".join([str(value) for value in numpy.squeeze(array)])+"]"
     def toStr(self,array):
         if isinstance(array[0],int) or isinstance(array[0],float):
             return "xxx["+", ".join(str(x) for x in array)+"]xxx"
@@ -565,7 +574,7 @@ class GPEncoder(json.JSONEncoder):
                 output["kernel"] = obj.kernel
                 output["parameters"] = self.toStr(obj.parameters)
             if obj.means is not None:
-                output["means"] = self.toStr(obj.means)
+                output["means"] = self.listOfArraysToString(obj.means)
             if obj.queries is not None:
                 output["locations"] = self.listOfArraysToString(obj.query_locations)
                 output["edges"] = self.toStr(obj.queries[0][0].bin_edges)
