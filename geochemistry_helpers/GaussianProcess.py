@@ -117,6 +117,11 @@ class GaussianProcess:
             return numpy.linspace(bounds[0],bounds[1],number[0])
         else:
             return numpy.logspace(numpy.log10(bounds[0]),numpy.log10(bounds[1]),number[0])
+    def quantile(self,value,group=None):
+        if group is None:
+            return numpy.array([query.quantile((value,)) for query in query_group for query_group in self.queries])
+        else:
+            return numpy.array([query.quantile((value,)) for query in self.queries[group]])
 
     def getCholesky(self):
         if self.cholesky is None:
