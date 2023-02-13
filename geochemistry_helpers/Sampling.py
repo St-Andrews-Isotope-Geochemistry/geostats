@@ -1,4 +1,4 @@
-import numpy,copy,math,warnings,json
+import numpy,copy,math,warnings,json,numbers
 from matplotlib import pyplot
 
 class Distribution:
@@ -275,19 +275,29 @@ class MarkovChain:
 class MarkovChainSample:
     def __init__(self):
         pass
-    def addField(self,name,value):
+    def addField(self,name,value,precision=None):
         output = MarkovChainSample()
         # Copy over any previous values
         for item in self.__dict__.items():
             output.__dict__[item[0]] = item[1]
         # Add new value
         if name not in output.__dict__:
-            output.__dict__[name] = value
+            if precision is None:
+                output.__dict__[name] = value
+            else:
+                output.__dict__[name] = self.iterround(value,precision)
         else:
             raise ValueError(name+" already in MarkovChainSample")
         return output
     def items(self):
         return self.__dict__.items()
+    def iterround(self,value,precision):
+        if isinstance(value,numbers.Number):
+            return round(value,precision)
+        elif isinstance(value,numpy.ndarray):
+            return numpy.round(value,precision)
+        else:
+            return [self.iterround(value,precision) for value in value]
 
 class MCEncoder(json.JSONEncoder):
     def listOfArraysToString(self,list_of_arrays):
