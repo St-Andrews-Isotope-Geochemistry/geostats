@@ -13,7 +13,7 @@ class Distribution:
     def standard_deviation(self):
         self.checkNormalised()
         return numpy.sqrt(numpy.sum((self.bin_midpoints-self.mean)**2 * self.probabilities))
-    @property
+
     def approximateGaussian(self,inflation=1):
         gaussian = Distribution(self.bin_edges,"Gaussian",(self.mean,self.standard_deviation*inflation),location=self.location).normalise()
         return gaussian
@@ -27,6 +27,8 @@ class Distribution:
     def __init__(self,bin_edges,type,values,location=None):
         self.type = type.lower()
         self.location = location
+        if self.type!="manual":
+            self.values = values
         self.bin_edges = numpy.array(bin_edges)
         if self.type=="flat":
             assert len(values)==2,"Number of values must be 2"
@@ -101,10 +103,19 @@ class Distribution:
         elif self.type=="loggaussian":
             return (1/(value*self.standard_deviation*numpy.sqrt(2*numpy.pi))) * numpy.exp(-(((numpy.log(value)-self.mean)**2)/((2*self.standard_deviation)**2)))
         else:
-            if value>numpy.min(self.bin_midpoints) and value<numpy.max(self.bin_midpoints):
-                return self.piecewiseInterpolate(self.bin_midpoints,self.probabilities,value)
+            if len(value)>1:
+                output = []
+                for val in value:
+                    if val>numpy.min(self.bin_midpoints) and val<numpy.max(self.bin_midpoints):
+                        output += [self.piecewiseInterpolate(self.bin_midpoints,self.probabilities,val)]
+                    else:
+                        output += [0]
+                return numpy.array(output)
             else:
-                return 0
+                if value>numpy.min(self.bin_midpoints) and value<numpy.max(self.bin_midpoints):
+                    return self.piecewiseInterpolate(self.bin_midpoints,self.probabilities,val)
+                else:
+                    return 0
     def getLogProbability(self,value):
         if self.type=="gaussian":
             return -numpy.log(self.standard_deviation)-(0.5*numpy.log(2*numpy.pi))-(0.5*((value-self.mean)/self.standard_deviation)**2)
@@ -143,6 +154,13 @@ class Distribution:
     def __repr__(self):
         return "Distribution("+str(self.bin_midpoints)+str(self.probabilities)+")"
     
+    def toJSON(self,filename):
+        json_data = json.dumps(self,cls=MCEncoder,indent=4)
+        json_data_stripped = json_data.replace('"xxx',"").replace('xxx"',"").replace('xxx',"")
+        with open(filename,"w") as file:
+            file.write(json_data_stripped)
+    
+
     @staticmethod
     def piecewiseInterpolate(x,y,xq):
         signed_distance = xq-x
@@ -178,6 +196,10 @@ class Distribution:
             return Distribution.collapseArrayByLocation(output_distributions,tolerance)
         else:
             return output_distributions
+# class Distributions:
+#     def __init__(self,distributions):
+#         self.distributions = distributions
+#     def 
 
 class Sampler(Distribution):
     def __init__(self,bin_edges,type,values,method,location=None):
@@ -321,6 +343,14 @@ class MCEncoder(json.JSONEncoder):
                     output[name] = self.arrayToString(value)
                 else:
                     output[name] = value
+            return output
+        elif isinstance(obj,Distribution):
+            output["type"] = obj.type
+            output["location"] = obj.location
+            if obj.type!="manual":
+                output["values"] = obj.values
+            output["bin_edges"] =  self.arrayToString(obj.bin_edges)
+            output["probabilities"] =  self.arrayToString(obj.probabilities)
             return output
         # Let the base class default method raise the TypeError
         return json.JSONEncoder.default(self,obj)

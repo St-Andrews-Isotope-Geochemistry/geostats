@@ -1,5 +1,6 @@
 import numpy,math,json
 from matplotlib import pyplot
+from matplotlib.collections import LineCollection
 from .Sampling import Sampler
 from .Sampling import Distribution
 
@@ -35,7 +36,14 @@ class GaussianProcess:
     
     @property
     def flat_means(self):
-        return numpy.concatenate([numpy.squeeze(mean_group) for mean_group in self.means])
+        to_concatenate = []
+        for mean_group in self.means:
+            if len(mean_group)==1:
+                to_concatenate += [mean_group[0]]
+            else:
+                to_concatenate += [numpy.squeeze(mean_group)]
+        return numpy.concatenate(to_concatenate)
+        # return numpy.concatenate([numpy.squeeze(mean_group) for mean_group in self.means])
 
     def split(self,array):
         query_indices = [0]
@@ -87,7 +95,7 @@ class GaussianProcess:
         else:
             if not self.gaussian_constraints:
                 query_locations = self.query_locations
-                constraint_approximations = [constraint.approximateGaussian for constraint in self.constraints]
+                constraint_approximations = [constraint.approximateGaussian() for constraint in self.constraints]
                 approximate_gp = GaussianProcess().constrain(constraint_approximations).setKernel(self.kernel,self.parameters,self.inflation,self.specified_mean).query(query_locations)
                 return approximate_gp
             else:
@@ -464,7 +472,7 @@ class GaussianProcess:
             axis = pyplot.gca()
         if group is None:
             query_locations = self.flat_query_locations
-            medians = numpy.array([query.quantile([0.5]) for query in query_group for query_group in self.queries])
+            medians = numpy.array([query.quantile([0.5]) for query_group in self.queries for query in query_group])
         else:
             query_locations = self.query_locations[group]
             medians = numpy.array([query.quantile([0.5]) for query in self.queries[group]])
@@ -496,14 +504,21 @@ class GaussianProcess:
                 axis.plot(locations,numpy.squeeze(sample),**kwargs)
             elif scatter:
                 axis.scatter(locations,numpy.squeeze(sample),**kwargs)
-    def plotConstraints(self,indices=None,axis=None,flipX=False,fmt='err',**kwargs):
+    def plotConstraints(self,indices=None,axis=None,flipX=False,fmt='err',quantiles=(0.025,0.975),**kwargs):
         if indices is None:
             indices = range(0,len(self.constraints))
         if axis is None:
             axis = pyplot.gca()
         for index in indices:
             if fmt=="err":
-                axis.errorbar(self.constraints[index].location,self.constraints[index].mean,yerr=self.constraints[index].standard_deviation*2,**kwargs)
+                axis.plot([self.constraints[index].location,self.constraints[index].location],self.constraints[index].quantile(quantiles),**kwargs)
+            if fmt=="segment":
+                edges_one = numpy.vstack((numpy.repeat(self.constraints[index].location,100),self.constraints[index].quantile(numpy.linspace(0.01,0.98,100)))).T
+                edges_two = numpy.vstack((numpy.repeat(self.constraints[index].location,100),self.constraints[index].quantile(numpy.linspace(0.02,0.99,100)))).T
+                segments = [(edge_one,edge_two) for edge_one,edge_two in zip(edges_one,edges_two,strict=True)]
+                alphas = 0+1.0*numpy.sin(numpy.linspace(0.01,0.98,100)*numpy.pi)
+                line_segments = LineCollection(segments,alpha=alphas,**kwargs)
+                axis.add_collection(line_segments)
             else:
                 axis.scatter(self.constraints[index].location,self.constraints[index].mean,**kwargs)
         if flipX:
@@ -558,7 +573,8 @@ class GaussianProcess:
             raw_data = file.read()
         json_data = json.loads(raw_data)
         self.setQueryLocations(json_data["locations"],bin_edges=numpy.array(json_data["edges"]))
-        self.fromMCMCSamples(json_data["samples"])
+        if "samples" in json_data:
+            self.fromMCMCSamples(json_data["samples"])
 
         return self
 
@@ -566,7 +582,10 @@ class GPEncoder(json.JSONEncoder):
     def listOfArraysToString(self,list_of_arrays):
         return "xxx["+", ".join([self.arrayToString(group) for group in list_of_arrays])+"]xxx"
     def arrayToString(self,array):
-        return "["+", ".join([str(value) for value in numpy.squeeze(array)])+"]"
+        if numpy.squeeze(array).size>1:
+            return "["+", ".join([str(value) for value in numpy.squeeze(array)])+"]"
+        else:
+            return "["+str(numpy.squeeze(array))+"]"
     def toStr(self,array):
         if isinstance(array[0],int) or isinstance(array[0],float):
             return "xxx["+", ".join(str(x) for x in array)+"]xxx"
