@@ -113,7 +113,7 @@ class Distribution:
                 return numpy.array(output)
             else:
                 if value>numpy.min(self.bin_midpoints) and value<numpy.max(self.bin_midpoints):
-                    return self.piecewiseInterpolate(self.bin_midpoints,self.probabilities,val)
+                    return self.piecewiseInterpolate(self.bin_midpoints,self.probabilities,value)
                 else:
                     return 0
     def getLogProbability(self,value):
