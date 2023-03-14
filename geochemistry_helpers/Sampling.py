@@ -276,8 +276,8 @@ class MarkovChain:
         for sample in self.samples:
             markov_chain_sample = MarkovChainSample()
             for (name,value) in sample.items():
-                if isinstance(value,numpy.ndarray):
-                    markov_chain_sample = markov_chain_sample.addField(name,numpy.round(value,precision))
+                if isinstance(value,numpy.ndarray) or isinstance(value,numbers.Number):
+                    markov_chain_sample = markov_chain_sample.addField(name,numpy.round(value,precision))            
                 else:
                     markov_chain_sample = markov_chain_sample.addField(name,[numpy.round(array,precision) for array in value])
             output = output.addSample(markov_chain_sample)
