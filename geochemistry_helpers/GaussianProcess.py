@@ -45,6 +45,14 @@ class GaussianProcess:
         return numpy.concatenate(to_concatenate)
         # return numpy.concatenate([numpy.squeeze(mean_group) for mean_group in self.means])
 
+    def flatten(self,values):
+        to_concatenate = []
+        for group in values:
+            if len(group)==1:
+                to_concatenate += [group[0]]
+            else:
+                to_concatenate += [numpy.squeeze(group)]
+        return numpy.concatenate(to_concatenate)
     def split(self,array):
         query_indices = [0]
         #array = numpy.transpose(array)
@@ -186,7 +194,7 @@ class GaussianProcess:
     def getSamples(self,number_of_samples,seed=None):
         self.number_of_samples = number_of_samples
         if seed is not None:
-            samples = numpy.transpose(numpy.transpose(self.flat_means[numpy.newaxis])+numpy.matmul(self.getCholesky(),numpy.transpose(seed[numpy.newaxis])))
+            samples = numpy.transpose(numpy.transpose(self.flat_means[numpy.newaxis])+numpy.matmul(self.getCholesky(),numpy.transpose(self.flatten(seed)[numpy.newaxis])))
         else:
             samples = numpy.random.multivariate_normal(numpy.squeeze(self.flat_means),self.covariances,number_of_samples)
         split_samples = self.split(samples)
