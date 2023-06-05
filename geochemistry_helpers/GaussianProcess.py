@@ -65,6 +65,11 @@ class GaussianProcess:
         output += [array[:,query_indices[-1]:-1]]
         return [array for array in output if array.size>0]
         
+    def generateSeed(self):
+        [group for group in self.query_locations]
+        return [numpy.random.normal(loc=0.0,scale=1.0,size=len(group)) for group in self.query_locations]
+    def perturbSeed(self,seed,standard_deviation):
+        return [numpy.random.normal(loc=(seed)/(1+standard_deviation**2),scale=numpy.sqrt((standard_deviation**2)/(1+standard_deviation**2))) for seed,standard_deviation in zip(seed,standard_deviation,strict=True)]
     def constrain(self,constraints):
         output = GaussianProcess()
         output.constrained = True
