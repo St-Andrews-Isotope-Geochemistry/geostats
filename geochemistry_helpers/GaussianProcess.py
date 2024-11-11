@@ -45,6 +45,14 @@ class GaussianProcess:
         return numpy.concatenate(to_concatenate)
         # return numpy.concatenate([numpy.squeeze(mean_group) for mean_group in self.means])
 
+    def flatten(self,values):
+        to_concatenate = []
+        for group in values:
+            if len(group)==1:
+                to_concatenate += [group[0]]
+            else:
+                to_concatenate += [numpy.squeeze(group)]
+        return numpy.concatenate(to_concatenate)
     def split(self,array):
         query_indices = [0]
         #array = numpy.transpose(array)
@@ -57,6 +65,11 @@ class GaussianProcess:
         output += [array[:,query_indices[-1]:-1]]
         return [array for array in output if array.size>0]
         
+    def generateSeed(self):
+        [group for group in self.query_locations]
+        return [numpy.random.normal(loc=0.0,scale=1.0,size=len(group)) for group in self.query_locations]
+    def perturbSeed(self,seed,standard_deviation):
+        return [numpy.random.normal(loc=(seed)/(1+standard_deviation**2),scale=numpy.sqrt((standard_deviation**2)/(1+standard_deviation**2))) for seed,standard_deviation in zip(seed,standard_deviation,strict=True)]
     def constrain(self,constraints):
         output = GaussianProcess()
         output.constrained = True
@@ -189,7 +202,7 @@ class GaussianProcess:
     def getSamples(self,number_of_samples,seed=None):
         self.number_of_samples = number_of_samples
         if seed is not None:
-            samples = numpy.transpose(numpy.transpose(self.flat_means[numpy.newaxis])+numpy.matmul(self.getCholesky(),numpy.transpose(seed[numpy.newaxis])))
+            samples = numpy.transpose(numpy.transpose(self.flat_means[numpy.newaxis])+numpy.matmul(self.getCholesky(),numpy.transpose(self.flatten(seed)[numpy.newaxis])))
         else:
             samples = numpy.random.multivariate_normal(numpy.squeeze(self.flat_means),self.covariances,number_of_samples)
         split_samples = self.split(samples)
@@ -494,7 +507,7 @@ class GaussianProcess:
         if axis is None:
             axis = pyplot.gca()
 
-        if group:
+        if group is not None:
             sample_generator = self.getNextSampleByNumber([self.samples[group]])
         else:
             sample_generator = self.getNextSampleByNumber()
@@ -502,7 +515,7 @@ class GaussianProcess:
         for sample_index in indices:
             while count<sample_index:
                 count += 1
-            sample = next(sample_generator)
+                sample = next(sample_generator)
             if not scatter:
                 axis.plot(locations,numpy.squeeze(sample),**kwargs)
             elif scatter:
