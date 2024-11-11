@@ -117,6 +117,9 @@ class GaussianProcess:
                 means = numpy.array(self.specified_mean + numpy.matmul(numpy.matmul(numpy.transpose(self.cross_covariance),matrix_inverse),constraints_mean-self.specified_mean))[numpy.newaxis]
                 
                 self.means = self.split(means)
+                
+                test_1 = numpy.matmul(numpy.transpose(self.cross_covariance),matrix_inverse)
+                
                 self.covariances = self.query_covariance - numpy.matmul(numpy.matmul(numpy.transpose(self.cross_covariance),matrix_inverse),self.cross_covariance)
         
         return self
@@ -127,7 +130,7 @@ class GaussianProcess:
             return numpy.logspace(numpy.log10(bounds[0]),numpy.log10(bounds[1]),number[0])
     def quantile(self,value,group=None):
         if group is None:
-            return numpy.array([query.quantile((value,)) for query in query_group for query_group in self.queries])
+            return numpy.array([query.quantile((value,)) for query_group in self.queries for query in query_group])
         else:
             return numpy.array([query.quantile((value,)) for query in self.queries[group]])
 
