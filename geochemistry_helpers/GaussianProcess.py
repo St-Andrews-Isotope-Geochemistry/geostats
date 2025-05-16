@@ -8,7 +8,7 @@ class GaussianProcess:
     def __init__(self):
         self.parameters = None
         self.kernel = None
-        self.samples = None
+        self.samples: None | list = None
         self.means = None
         self.queries = []
         self.weights = None
@@ -138,7 +138,7 @@ class GaussianProcess:
         return self
     def getBounds(self,bounds,number,logspace):
         if not logspace:
-            return numpy.linspace(bounds[0],bounds[1],number[0])
+            return numpy.linspace(bounds[0],bounds[1],number)
         else:
             return numpy.logspace(numpy.log10(bounds[0]),numpy.log10(bounds[1]),number[0])
     def quantile(self,value,group=None):
@@ -360,8 +360,8 @@ class GaussianProcess:
     # Fit
     def fit(self,method,kernel,bounds,kfold=0,number=(10,10),levels=5,specified_mean=False,logspace=False,start=None,iterations=10,tolerance=None):
         if method=="grid":
-            parameter_1_values = self.getBounds(bounds[0],number,logspace)
-            parameter_2_values = self.getBounds(bounds[1],number,logspace)
+            parameter_1_values = self.getBounds(bounds[0],number[0],logspace)
+            parameter_2_values = self.getBounds(bounds[1],number[1],logspace)
             
             if kfold>1:
                 likelihood = numpy.empty((number[0],number[1],kfold))
